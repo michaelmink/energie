@@ -1,0 +1,4 @@
+googleapiclient.discovery
+google.oauth2
+pandas
+matplotlib
