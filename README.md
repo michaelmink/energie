@@ -52,14 +52,17 @@ The plots are shown in the following:
 
 ### Gas
 ![Image1](./plots/gas_verbrauch.png)
+![Image1](./plots/gas_kosten.png)
 ![Image1](./plots/gas_ablesungen.png)
 
 ### Electricity
 ![Image1](./plots/strom_verbrauch.png)
+![Image1](./plots/strom_kosten.png)
 ![Image1](./plots/strom_ablesungen.png)
 
 ### Water
 ![Image1](./plots/wasser_verbrauch.png)
+![Image1](./plots/wasser_kosten.png)
 ![Image1](./plots/wasser_ablesungen.png)
 
 ## Ideas for Further Development
