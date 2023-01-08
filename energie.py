@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Energie:
@@ -18,8 +19,8 @@ class Energie:
         self.RANGE_PRICES_GAS = 'L2:N20'
         self.RANGE_PRICES_WASSER = 'P2:R20'
 
-        self.creds_file = os.path.join('.', 'energie', 'credentials.json')
-        #self.creds_file = os.path.join('.', 'credentials.json')
+        #self.creds_file = os.path.join('.', 'energie', 'credentials.json')
+        self.creds_file = os.path.join('.', 'credentials.json')
         self.plot_dir = os.path.join('.', 'plots')
 
         self.factor_m3_to_kWh = 10
@@ -107,6 +108,8 @@ class Energie:
         self.df_strom_final = self.df_monthly[['Strom_interp_der']].join(self.df_monthly_prices_strom)
         self.df_strom_final['Kosten'] = self.df_strom_final['Strom_interp_der'] * self.df_strom_final['Arbeitspreis_daily'] + self.df_strom_final['Grundpreis_daily']
         self.df_gas_final = self.df_monthly[['Gas_interp_der']].join(self.df_monthly_prices_gas)
+        # m3 to kWh
+        self.df_gas_final['Gas_interp_der'] = self.df_gas_final['Gas_interp_der'] * self.factor_m3_to_kWh
         self.df_gas_final['Kosten'] = self.df_gas_final['Gas_interp_der'] * self.df_gas_final['Arbeitspreis_daily'] + self.df_gas_final['Grundpreis_daily']
         self.df_wasser_final = self.df_monthly[['Wasser_interp_der']].join(self.df_monthly_prices_wasser)
         self.df_wasser_final['Kosten'] = self.df_wasser_final['Wasser_interp_der'] * self.df_wasser_final['Arbeitspreis_daily'] + self.df_wasser_final['Grundpreis_daily']                
@@ -118,8 +121,8 @@ class Energie:
             os.makedirs(self.plot_dir)
 
         # get yearly stats
-        years = self.df_readings['year'].unique()
-        month_index = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+        years = self.df_readings['year'].unique()        
+        month_index = np.arange(1, 13, dtype=np.int64)
 
         # verbrauch
         df_strom = pd.DataFrame(columns=years, index=month_index)
@@ -137,41 +140,62 @@ class Energie:
         gas_cost_legend = []
         wasser_cost_legend = []
 
-        # TODO!!!
+        # Strom
         for year in years:
-            mask = (self.df_monthly.index >= f'{year}-01') & (self.df_monthly.index <= f'{year}-12')
-            data_year = self.df_monthly.loc[mask]
-
-            # m3 to kWh
-            data_year['Gas_interp_der'] = data_year['Gas_interp_der'] * self.factor_m3_to_kWh 
-            data_year['Gas_Cost'] = data_year['Gas_Cost'] * self.factor_m3_to_kWh
+            mask = (self.df_strom_final.index >= f'{year}-01') & (self.df_strom_final.index <= f'{year}-12')
+            data_year = self.df_strom_final.loc[mask]
 
             # change index (remove year)
             idx_new = []
             for idx in data_year.index:
-                idx_new.append(idx.split('-')[-1])
+                idx_new.append(idx.month)
             data_year.index = idx_new
-
-            print(f'Consumption for {year}:')
-            print(f" Gas: {data_year['Gas_interp_der'].sum() * self.factor_m3_to_kWh:.1f} kWh")
-            print(f" Strom: {data_year['Strom_interp_der'].sum():.1f} kWh")
-            print(f" Wasser: {data_year['Wasser_interp_der'].sum():.1f} m3")
         
             # df
             df_strom[year] = data_year['Strom_interp_der']
-            df_gas[year] = data_year['Gas_interp_der']
-            df_wasser[year] = data_year['Wasser_interp_der']
-            df_strom_cost[year] = data_year['Strom_Cost']
-            df_gas_cost[year] = data_year['Gas_Cost']
-            df_wasser_cost[year] = data_year['Wasser_Cost']
+            df_strom_cost[year] = data_year['Kosten']
 
             # legend
             strom_legend.append(f"{year} ({data_year['Strom_interp_der'].sum():.0f} kWh)")
+            strom_cost_legend.append(f"{year} ({data_year['Kosten'].sum():.0f} Euro)")
+
+        # Gas
+        for year in years:
+            mask = (self.df_gas_final.index >= f'{year}-01') & (self.df_gas_final.index <= f'{year}-12')
+            data_year = self.df_gas_final.loc[mask]
+
+            # change index (remove year)
+            idx_new = []
+            for idx in data_year.index:
+                idx_new.append(idx.month)
+            data_year.index = idx_new
+        
+            # df
+            df_gas[year] = data_year['Gas_interp_der']
+            df_gas_cost[year] = data_year['Kosten']
+
+            # legend
             gas_legend.append(f"{year} ({data_year['Gas_interp_der'].sum():.0f} kWh)")
+            gas_cost_legend.append(f"{year} ({data_year['Kosten'].sum():.0f} Euro)")
+
+        # Wasser
+        for year in years:
+            mask = (self.df_wasser_final.index >= f'{year}-01') & (self.df_wasser_final.index <= f'{year}-12')
+            data_year = self.df_wasser_final.loc[mask]
+
+            # change index (remove year)
+            idx_new = []
+            for idx in data_year.index:
+                idx_new.append(idx.month)
+            data_year.index = idx_new
+        
+            # df
+            df_wasser[year] = data_year['Wasser_interp_der']
+            df_wasser_cost[year] = data_year['Kosten']
+
+            # legend
             wasser_legend.append(f"{year} ({data_year['Wasser_interp_der'].sum():.0f} m3)")
-            strom_cost_legend.append(f"{year} ({data_year['Strom_Cost'].sum():.0f} Euro)")
-            gas_cost_legend.append(f"{year} ({data_year['Gas_Cost'].sum():.0f} Euro)")
-            wasser_cost_legend.append(f"{year} ({data_year['Wasser_Cost'].sum():.0f} Euro)")
+            wasser_cost_legend.append(f"{year} ({data_year['Kosten'].sum():.0f} Euro)")
             
         # Plots
         # Strom
@@ -187,7 +211,7 @@ class Energie:
 
         # Strom Kosten
         df_strom_cost.plot.bar()
-        plt.title('Kosten Strom (ohne Grundgebühr)')
+        plt.title('Kosten Strom')
         plt.xlabel('Month')
         plt.ylabel('[Euro]')
         plt.grid(axis='y')
@@ -209,7 +233,7 @@ class Energie:
 
         # Gas Kosten
         df_gas_cost.plot.bar()
-        plt.title('Kosten Gas (ohne Grundgebühr)')
+        plt.title('Kosten Gas')
         plt.xlabel('Month')
         plt.ylabel('[Euro]')
         plt.grid(axis='y')
@@ -231,7 +255,7 @@ class Energie:
 
         # Wasser Kosten
         df_wasser_cost.plot.bar()
-        plt.title('Kosten Wasser (ohne Grundgebühr)')
+        plt.title('Kosten Wasser')
         plt.xlabel('Month')
         plt.ylabel('[Euro]')
         plt.grid(axis='y')
