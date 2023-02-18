@@ -23,7 +23,7 @@ class Energie:
         self.creds_file = os.path.join('.', 'credentials.json')
         self.plot_dir = os.path.join('.', 'plots')
 
-        self.factor_m3_to_kWh = 10
+        self.factor_m3_to_kWh = 10.5
 
         # get data
         self.get_data()
