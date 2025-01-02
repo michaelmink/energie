@@ -19,7 +19,7 @@ class Energie:
         self.RANGE_PRICES_GAS = 'L2:N20'
         self.RANGE_PRICES_WASSER = 'P2:R20'
 
-        #self.creds_file = os.path.join('.', 'energie', 'credentials.json')
+        #self.creds_file = os.path.join('repos', 'energie', 'credentials.json')
         self.creds_file = os.path.join('.', 'credentials.json')
         self.plot_dir = os.path.join('.', 'plots')
 
@@ -63,10 +63,10 @@ class Energie:
     def preprocessing(self):
 
         # add columns
-        self.df_readings[['day', 'month', 'year']] = self.df_readings['Datum'].str.split('.', 2, expand=True)
-        self.df_prices_strom[['day', 'month', 'year']] = self.df_prices_strom['Datum'].str.split('.', 2, expand=True)
-        self.df_prices_gas[['day', 'month', 'year']] = self.df_prices_gas['Datum'].str.split('.', 2, expand=True)
-        self.df_prices_wasser[['day', 'month', 'year']] = self.df_prices_wasser['Datum'].str.split('.', 2, expand=True)
+        self.df_readings[['day', 'month', 'year']] = self.df_readings['Datum'].str.split('.', expand=True)
+        self.df_prices_strom[['day', 'month', 'year']] = self.df_prices_strom['Datum'].str.split('.', expand=True)
+        self.df_prices_gas[['day', 'month', 'year']] = self.df_prices_gas['Datum'].str.split('.', expand=True)
+        self.df_prices_wasser[['day', 'month', 'year']] = self.df_prices_wasser['Datum'].str.split('.', expand=True)
 
         # convert to datetime
         self.df_readings['datetime'] = pd.to_datetime(self.df_readings[['year', 'month', 'day']])
@@ -81,16 +81,16 @@ class Energie:
         self.df_prices_wasser.index = self.df_prices_wasser['datetime']
 
         # resample to daily steps
-        self.df_interpol = self.df_readings[['Strom', 'Wasser', 'Gas']].resample('D').mean()
-        self.df_prices_strom_daily = self.df_prices_strom[['Arbeitspreis', 'Grundpreis']].resample('D').mean()
-        self.df_prices_gas_daily = self.df_prices_gas[['Arbeitspreis', 'Grundpreis']].resample('D').mean()
-        self.df_prices_wasser_daily = self.df_prices_wasser[['Arbeitspreis', 'Grundpreis']].resample('D').mean()
+        self.df_interpol = self.df_readings[['Strom', 'Wasser', 'Gas']].astype('float16').resample('D').mean()
+        self.df_prices_strom_daily = self.df_prices_strom[['Arbeitspreis', 'Grundpreis']].astype('float32').resample('D').mean()
+        self.df_prices_gas_daily = self.df_prices_gas[['Arbeitspreis', 'Grundpreis']].astype('float32').resample('D').mean()
+        self.df_prices_wasser_daily = self.df_prices_wasser[['Arbeitspreis', 'Grundpreis']].astype('float32').resample('D').mean()
 
         # interpolate/pad data
         self.df_interpol[['Strom_interp', 'Wasser_interp', 'Gas_interp']] = self.df_interpol[['Strom', 'Wasser', 'Gas']].interpolate()
-        self.df_prices_strom_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_strom_daily[['Arbeitspreis', 'Grundpreis']].pad()
-        self.df_prices_gas_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_gas_daily[['Arbeitspreis', 'Grundpreis']].pad()
-        self.df_prices_wasser_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_wasser_daily[['Arbeitspreis', 'Grundpreis']].pad()
+        self.df_prices_strom_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_strom_daily[['Arbeitspreis', 'Grundpreis']].astype('float32').ffill(axis=0)
+        self.df_prices_gas_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_gas_daily[['Arbeitspreis', 'Grundpreis']].astype('float32').ffill(axis=0)
+        self.df_prices_wasser_daily[['Arbeitspreis_daily', 'Grundpreis_daily']] = self.df_prices_wasser_daily[['Arbeitspreis', 'Grundpreis']].astype('float32').ffill(axis=0)
 
         # first derivation to get daily consumption
         self.df_interpol[['Strom_interp_der', 'Wasser_interp_der', 'Gas_interp_der']] = self.df_interpol[['Strom_interp', 'Wasser_interp', 'Gas_interp']].diff()
@@ -112,7 +112,7 @@ class Energie:
         self.df_gas_final['Gas_interp_der'] = self.df_gas_final['Gas_interp_der'] * self.factor_m3_to_kWh
         self.df_gas_final['Kosten'] = self.df_gas_final['Gas_interp_der'] * self.df_gas_final['Arbeitspreis_daily'] + self.df_gas_final['Grundpreis_daily']
         self.df_wasser_final = self.df_monthly[['Wasser_interp_der']].join(self.df_monthly_prices_wasser)
-        self.df_wasser_final['Kosten'] = self.df_wasser_final['Wasser_interp_der'] * self.df_wasser_final['Arbeitspreis_daily'] + self.df_wasser_final['Grundpreis_daily']                
+        self.df_wasser_final['Kosten'] = self.df_wasser_final['Wasser_interp_der'] * self.df_wasser_final['Arbeitspreis_daily'] + self.df_wasser_final['Grundpreis_daily']
 
     def plots_and_stats(self):
         
